@@ -1,17 +1,16 @@
-# Watch party (protótipo estilo Rave)
+# Sessão — assistir junto
 
-Salas por código, vídeo do YouTube sincronizado (play, pausa, pulos) e chat.
+## Estrutura
+- `server.js`: servidor Socket.IO, salas, permissões, presença e digitação.
+- `public/index.html`: interface do site.
+- `package.json`: dependências e comando de inicialização.
 
-## Rodar no computador
-1. Instale o Node.js 18 ou mais novo.
-2. Nesta pasta: `npm install` e depois `npm start`.
-3. Abra http://localhost:3000. Para testar, abra duas abas na mesma sala.
+## Instalação
+1. Coloque `server.js` e `package.json` na raiz do projeto.
+2. Coloque `index.html` dentro da pasta `public`.
+3. Execute `npm install`.
+4. Execute `npm start`.
 
-## Usar com amigos de verdade
-Publique a pasta num serviço gratuito que rode Node (Render, Railway ou Glitch):
-envie os arquivos, comando de início `npm start`. Depois é só mandar o link e o código da sala.
+O primeiro participante a entrar em uma sala é o criador. Somente ele pode adicionar ou trocar o vídeo. Se ele sair, um participante restante assume a administração.
 
-## Como funciona
-- `server.js` guarda o estado de cada sala (vídeo, tocando, posição) e repassa eventos por WebSocket.
-- Cada navegador toca o vídeo direto do YouTube; o servidor só sincroniza.
-- Se alguém ficar mais de 1 s atrasado, o player é ajustado automaticamente.
+Observação: as salas são mantidas em memória. Reiniciar o servidor apaga as salas ativas.
