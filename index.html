@@ -1,0 +1,813 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Watch Party — assista junto</title>
+<meta name="theme-color" content="#090b16">
+<meta name="description" content="Crie uma sala, convide seus amigos e assistam juntos em sincronia.">
+<link rel="preconnect" href="https://www.youtube.com">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<style>
+:root{
+  --bg:#171222;--panel:#211a30;--panel2:#2b213d;--line:#3c3052;
+  --text:#f5efff;--muted:#a99bbd;--lamp:#ffbd59;--purple:#8554bd;
+  color-scheme:dark;font-family:"Bricolage Grotesque",system-ui,sans-serif;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)
+}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at top left,#2a1d3d 0%,var(--bg) 48%);color:var(--text);min-height:100vh}
+input,button{font:inherit;border-radius:12px;border:1px solid var(--line);padding:.78rem .95rem}
+input{background:var(--panel);color:var(--text);width:100%;min-width:0}
+input::placeholder{color:#887b9d}
+button{background:var(--lamp);color:#21172b;font-weight:700;border-color:var(--lamp);cursor:pointer;transition:transform .18s,filter .18s}
+button:active{transform:scale(.97)}
+button:hover{filter:brightness(1.06)}
+button:focus-visible,input:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
+#lobby{max-width:520px;margin:8vh auto;padding:1.6rem;display:grid;gap:.85rem}.lobby-options{display:grid;gap:.65rem;padding:.9rem;background:#211a30;border:1px solid var(--line);border-radius:16px}.lobby-row{display:flex;align-items:center;gap:.6rem}.lobby-row input[type=checkbox]{width:auto}.lobby-row label{color:var(--muted);font-size:.9rem}.small-label{font-size:.78rem;color:var(--muted)}#roomNotice{color:#bda9d3;font-size:.82rem;overflow-wrap:anywhere}#roomTools{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}#roomTools button{padding:.48rem .7rem;font-size:.78rem} .person button{padding:.1rem .35rem;border:0;border-radius:6px;font-size:.68rem;margin-left:.2rem}
+h1{font-size:clamp(2.5rem,9vw,3.2rem);font-weight:800;line-height:.96;margin:0 0 .5rem;letter-spacing:-.04em}
+.hint{color:var(--muted);margin:0 0 1rem;line-height:1.5}
+#app{display:none;grid-template-columns:minmax(0,1fr) 370px;height:100vh;min-height:0}
+#stage{padding:1.1rem;display:flex;flex-direction:column;gap:.9rem;min-width:0;overflow:auto}
+.bar{display:flex;gap:.55rem}
+.code{color:var(--muted);font-size:.95rem}.code b{color:var(--lamp);font-size:1.2rem;letter-spacing:.1em}
+#screen{position:relative;isolation:isolate;aspect-ratio:16/9;width:100%;background:#050407;border:1px solid #49365e;border-radius:18px;overflow:hidden;box-shadow:0 18px 70px -28px #b47be0}
+#screen iframe,#ytWrap,#vid{width:100%;height:100%;display:block}#vid[hidden],#ytWrap[hidden]{display:none}
+#floatingChat{position:absolute;inset:0;z-index:20;overflow:hidden;pointer-events:none;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;gap:.55rem;padding:1rem 1rem 4.2rem}
+.float-message{max-width:min(82%,560px);display:flex;align-items:flex-start;gap:.5rem;padding:.55rem .8rem;border:1px solid #ffffff30;border-radius:15px;background:#160f24d9;box-shadow:0 5px 22px #0008;backdrop-filter:blur(8px);color:#fff;animation:floatIn .25s ease-out;overflow-wrap:anywhere}
+.float-message strong{color:#ffd18a;white-space:nowrap;font-size:.82rem}
+.float-message span{font-size:.9rem;line-height:1.35}
+.float-message.leaving{opacity:0;transform:translateY(8px);transition:opacity .45s,transform .45s}
+#screenTools{position:absolute;right:.7rem;bottom:.7rem;z-index:25;display:flex;gap:.45rem}
+#screenTools button{border:1px solid #ffffff35;background:#171222d9;color:#fff;border-radius:999px;padding:.48rem .75rem;font-size:.78rem;backdrop-filter:blur(8px)}
+#screenTools button[aria-pressed="false"]{opacity:.65}
+#screen:fullscreen{width:100vw;height:100vh;max-width:none;max-height:none;aspect-ratio:auto;border:0;border-radius:0;box-shadow:none;background:#000}
+#screen:fullscreen #ytWrap,#screen:fullscreen #vid{width:100%;height:100%;object-fit:contain}
+@keyframes floatIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+#screen.guest #ytWrap{pointer-events:none}
+#screen.guest #vid{pointer-events:none}
+#side{border-left:1px solid var(--line);display:flex;flex-direction:column;background:linear-gradient(180deg,#211a30,#191423);min-height:0;overflow:hidden}
+.chat-head{padding:1rem 1rem .85rem;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:.6rem}
+.chat-brand{display:flex;align-items:center;gap:.7rem;min-width:0}
+.chat-icon{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(145deg,#7950a8,#432b60);font-size:1.2rem;box-shadow:0 7px 22px #0004}
+.chat-title{font-weight:800;letter-spacing:.04em}.chat-sub{font-size:.78rem;color:var(--muted);margin-top:2px}
+.online-pill{white-space:nowrap;background:#183b32;color:#8be0b7;border:1px solid #285847;border-radius:999px;padding:.35rem .6rem;font-size:.75rem;font-weight:700}
+#people{display:flex;gap:.35rem;flex-wrap:wrap;padding:.65rem 1rem;border-bottom:1px solid #332842;min-height:43px}
+.person{display:flex;align-items:center;gap:.35rem;color:#cbbddc;background:#2b213b;border:1px solid #403151;border-radius:999px;padding:.25rem .55rem;font-size:.75rem}
+.person-dot{width:7px;height:7px;border-radius:50%;background:#62d69c;box-shadow:0 0 8px #62d69c88}
+#log{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.75rem;overscroll-behavior:contain}
+#log::-webkit-scrollbar{width:6px}#log::-webkit-scrollbar-thumb{background:#49375d;border-radius:9px}
+.chat-event{text-align:center;color:#9183a4;font-size:.75rem;padding:.2rem .3rem}
+.message{display:flex;flex-direction:column;gap:.28rem;max-width:88%;align-self:flex-start;animation:pop .2s ease-out}
+.message.mine{align-self:flex-end;align-items:flex-end}
+.message-meta{display:flex;align-items:center;gap:.4rem;font-size:.72rem;color:#b9a9ca;padding:0 .25rem}
+.message-meta strong{color:#e7d9f5;font-size:.77rem}
+.creator-tag{color:#ffd18a;background:#49351e;border-radius:999px;padding:.08rem .35rem;font-size:.65rem}
+.bubble{background:#30263f;border:1px solid #40334f;border-radius:5px 16px 16px 16px;padding:.7rem .85rem;line-height:1.4;overflow-wrap:anywhere;box-shadow:0 5px 18px #0002}
+.mine .bubble{background:linear-gradient(145deg,#7650a3,#63418d);border-color:#8c63b5;border-radius:16px 5px 16px 16px}
+.message-time{font-size:.65rem;color:#a99ab8;padding:0 .25rem}
+#typing{min-height:22px;padding:0 1rem .35rem;color:#bca9d1;font-size:.75rem}
+.typing-dots{display:inline-flex;gap:3px;margin-right:5px;vertical-align:middle}
+.typing-dots i{width:4px;height:4px;background:#c6a3e7;border-radius:50%;animation:dot 1s infinite}
+.typing-dots i:nth-child(2){animation-delay:.15s}.typing-dots i:nth-child(3){animation-delay:.3s}
+#chatForm{display:flex;gap:.5rem;padding:.75rem .85rem calc(.85rem + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);background:#1b1527}
+#chatIn{border-radius:999px;background:#30263f;border-color:#453653;padding:.78rem 1rem}
+#chatForm button{width:46px;min-width:46px;height:46px;padding:0;border-radius:50%;font-size:1.1rem}
+.emoji-row{display:flex;gap:.25rem;padding:0 .9rem .55rem;background:#1b1527}
+.emoji-btn{border:0;background:transparent;color:var(--text);padding:.2rem .35rem;font-size:1.1rem;border-radius:8px}
+.emoji-btn:hover{background:#392b4b}
+@keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes dot{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-4px);opacity:1}}
+@media(max-width:800px){
+  #app{grid-template-columns:1fr;grid-template-rows:auto minmax(420px,1fr);height:auto;min-height:100vh}
+  #stage{padding:.85rem}
+  #side{border-left:0;border-top:1px solid var(--line);height:65vh;min-height:460px}
+  #screen{border-radius:14px}
+  #floatingChat{padding:.65rem .65rem 3.7rem;gap:.35rem}
+  .float-message{max-width:92%;padding:.42rem .6rem}
+  .float-message span{font-size:.8rem}
+  #screenTools{right:.45rem;bottom:.45rem}
+  #screenTools button{font-size:.7rem;padding:.4rem .6rem}
+  .bar{flex-direction:column}
+  .bar button{width:100%}
+}
+
+#authView{max-width:460px;margin:7vh auto;padding:1.4rem;display:grid;gap:.8rem}
+.auth-card{background:#211a30;border:1px solid var(--line);border-radius:22px;padding:1.5rem;box-shadow:0 22px 70px #0005}
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+.auth-tabs button{background:#30263f;color:var(--text);border-color:#49375d}
+.auth-tabs button.active{background:var(--lamp);color:#21172b;border-color:var(--lamp)}
+.auth-note{min-height:1.2rem;color:#ffbd89;font-size:.85rem}
+#profileBar{display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;padding:.65rem 1rem;background:#211a30;border-bottom:1px solid var(--line)}
+#profileAvatar{width:36px;height:36px;border-radius:50%;object-fit:cover;background:#49365e}
+#profileInfo{flex:1;min-width:0;color:var(--muted);font-size:.8rem}
+#profileInfo strong{display:block;color:var(--text);font-size:.95rem}
+#historyPanel{padding:.7rem 1rem;border-bottom:1px solid var(--line);max-height:145px;overflow:auto;color:var(--muted);font-size:.78rem}
+.history-item{display:flex;justify-content:space-between;gap:.5rem;padding:.25rem 0}
+#profileEditor{display:none;padding:.7rem 1rem;background:#2b213d;gap:.5rem}
+#profileEditor.open{display:grid}
+@media(max-width:520px){#authView{margin:3vh auto;padding:1rem}.auth-card{padding:1.1rem}}
+
+.community-hub{width:min(1100px,94vw);margin:1rem auto 1.4rem;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:1rem;box-shadow:0 12px 35px #0002}
+.hub-heading{display:flex;justify-content:space-between;gap:1rem;align-items:center;margin-bottom:.8rem}.hub-heading strong{font-size:1.05rem}.hub-heading span,.hub-muted{color:var(--muted);font-size:.78rem}
+.hub-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}.hub-card{min-width:0;border:1px solid var(--line);border-radius:15px;padding:.85rem;background:color-mix(in srgb,var(--panel) 85%,#777 4%)}.hub-card h3{margin:0 0 .7rem;font-size:.95rem}.hub-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.45rem;margin-bottom:.55rem}.hub-form input{min-width:0}.hub-form input:nth-child(2):not(:last-child){grid-column:1/-1}.hub-list{display:grid;gap:.45rem;margin:.45rem 0}.hub-item{display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.55rem .65rem;border-radius:10px;background:var(--bg);font-size:.82rem;min-width:0}.hub-item span{min-width:0;overflow-wrap:anywhere}.hub-item button,.hub-card button.secondary{font-size:.72rem;padding:.4rem .55rem}.hub-actions{display:flex;gap:.35rem;flex-wrap:wrap}.hub-count{font-size:.72rem;color:var(--accent)}.hub-card .secondary{background:transparent;border:1px solid var(--line);color:var(--text)}
+@media(max-width:650px){.hub-grid{grid-template-columns:1fr}.hub-heading{align-items:flex-start;flex-direction:column}.community-hub{padding:.7rem}.hub-form{grid-template-columns:1fr auto}}
+
+
+/* Watch Party 2026: acabamento responsivo do espaço social */
+:root{--bg:#0c0b16;--panel:#171525;--panel2:#211d35;--line:#302a49;--text:#f8f5ff;--muted:#aaa4bd;--lamp:#c9a7ff;--purple:#8c63d8}
+body{background:radial-gradient(ellipse at 12% -8%,#342451 0,transparent 38%),radial-gradient(ellipse at 95% 0%,#1d3450 0,transparent 30%),var(--bg)}
+button{border-radius:13px;box-shadow:0 5px 16px #0002}button.secondary{background:#252039;color:var(--text);border-color:#44395f}
+.community-hub{width:min(1100px,94vw);margin:1.2rem auto 1.5rem;padding:1rem;background:linear-gradient(145deg,#1a1729ed,#12111fed);border:1px solid #3b3156;border-radius:22px;box-shadow:0 20px 60px #0004}
+.hub-heading{padding:.15rem .2rem .8rem;border-bottom:1px solid var(--line)}.hub-heading strong{font-size:1.1rem;letter-spacing:-.02em}.hub-heading span{color:var(--muted)}
+.hub-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.85rem;margin-top:.85rem}.hub-card{background:linear-gradient(150deg,#211d34,#181626);border:1px solid #39314f;border-radius:17px;padding:1rem;box-shadow:inset 0 1px #ffffff08}.hub-card h3{font-size:1rem;letter-spacing:-.01em;margin:0 0 .8rem}.hub-form{gap:.5rem}.hub-form input{background:#11101c;border-color:#39324d}.hub-form button{white-space:nowrap}.hub-list{gap:.5rem}.hub-item{background:#12111e;border:1px solid #302a43;border-radius:12px;padding:.6rem .7rem}.hub-item span{line-height:1.4}.hub-actions button{font-size:.7rem!important;padding:.42rem .58rem!important;border-radius:9px}.hub-count{background:#49316e;color:#e6d3ff;border-radius:99px;padding:.15rem .45rem}
+#profileBar{background:#151323;border-bottom-color:#342c49}#historyPanel{background:#141221}#roomTools{padding:.2rem 0}#roomNotice{padding:.25rem 0;color:#d3b8ff}
+@media(max-width:650px){.community-hub{width:calc(100% - 1rem);padding:.75rem;margin:.8rem auto 1rem;border-radius:17px}.hub-grid{grid-template-columns:1fr;gap:.65rem}.hub-card{padding:.8rem}.hub-form{grid-template-columns:minmax(0,1fr) auto}.hub-item{align-items:flex-start}.hub-actions{justify-content:flex-end}.hub-heading{gap:.25rem}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+</style>
+
+<!-- Redesign visual Watch Party: camada de estilos sem alterar a lógica do app. -->
+<style>
+:root{
+  --bg:#090b16;--panel:#111629;--panel2:#171e35;--line:#29324f;
+  --text:#f5f7ff;--muted:#929bb8;--lamp:#a78bfa;--purple:#7658ed;
+  --accent:#55d6ff;--success:#52e0ad;
+  color-scheme:dark;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+html{background:var(--bg)}
+body{
+  background:radial-gradient(ellipse at 12% -8%,#29245c 0,transparent 36%),
+    radial-gradient(ellipse at 100% 10%,#102c48 0,transparent 30%),
+    linear-gradient(145deg,#090b16 0%,#0b1020 55%,#090d19 100%);
+  color:var(--text);letter-spacing:.005em;
+}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;z-index:-1;
+  background-image:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);
+  background-size:42px 42px;mask-image:linear-gradient(to bottom,#000,transparent 80%)}
+*{box-sizing:border-box}
+button,input{font:inherit;border-radius:13px;transition:background .2s,border-color .2s,transform .2s,box-shadow .2s}
+input{background:#0c1223;border:1px solid #2a3554;color:#f6f7ff;padding:.88rem 1rem;box-shadow:inset 0 1px 0 #ffffff05}
+input::placeholder{color:#707b9a}
+input:focus{outline:none;border-color:#8b75f5;box-shadow:0 0 0 3px #8b75f52b}
+button{background:linear-gradient(135deg,#9b82ff,#7056e8);color:white;border:1px solid #a18cff;padding:.82rem 1.05rem;font-weight:750;box-shadow:0 8px 24px #7056e82b;cursor:pointer}
+button:hover{filter:brightness(1.1);box-shadow:0 10px 28px #7056e844;transform:translateY(-1px)}
+button:active{transform:translateY(0) scale(.98)}
+button:focus-visible,input:focus-visible{outline:3px solid #b6a6ff;outline-offset:3px}
+
+/* Entrada e cadastro */
+#authView{width:min(100% - 32px,480px);max-width:480px;min-height:100svh;margin:0 auto;padding:7vh 0;display:grid;align-content:center;gap:1rem}
+.auth-card{position:relative;overflow:hidden;background:linear-gradient(155deg,#171e37f5,#101629f7 65%);border:1px solid #3b4267;border-radius:28px;padding:clamp(1.35rem,5vw,2.25rem);box-shadow:0 30px 100px #0008,0 0 70px #7960e51c;backdrop-filter:blur(20px)}
+.auth-card:before{content:"";position:absolute;width:240px;height:240px;border-radius:50%;right:-115px;top:-145px;background:#8c6bff33;filter:blur(4px);pointer-events:none}
+.auth-card:after{content:"✦  ASSISTA JUNTO";display:inline-flex;align-items:center;gap:.45rem;margin-bottom:1.35rem;padding:.42rem .72rem;border:1px solid #6655a566;border-radius:999px;background:#8d73ff16;color:#c8bdff;font-size:.68rem;font-weight:850;letter-spacing:.16em}
+#authView h1,#lobby h1{font-size:clamp(2.65rem,10vw,4rem);line-height:.98;letter-spacing:-.075em;font-weight:850;margin:0 0 .8rem;background:linear-gradient(100deg,#fff 10%,#cfc4ff 55%,#76ddff 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hint{color:#a8b0ca;line-height:1.65;font-size:.96rem;margin:0 0 1.25rem;max-width:38rem}
+.auth-tabs{padding:5px;gap:5px;border:1px solid #2b3552;background:#0b1121;border-radius:15px}
+.auth-tabs button{background:transparent;color:#929bb8;border:0;box-shadow:none;border-radius:11px;padding:.75rem}
+.auth-tabs button.active{background:linear-gradient(135deg,#8e76f7,#634ee0);color:white;box-shadow:0 5px 18px #725be755}
+#loginForm,#registerForm{gap:.75rem!important;margin-top:1.1rem!important}
+#loginForm button,#registerForm button{margin-top:.25rem;min-height:49px}
+.auth-note{color:#ffb5c1;min-height:1.25rem;font-size:.84rem;padding-top:.35rem}
+
+/* Entrada em uma sala */
+#lobby{width:min(100% - 32px,680px);max-width:680px;min-height:100svh;margin:0 auto;padding:8vh 0;align-content:center;justify-items:stretch;gap:1rem}
+#lobby:before{content:"✦  SUA PRÓXIMA SESSÃO COMEÇA AQUI";display:inline-flex;width:max-content;max-width:100%;padding:.48rem .8rem;border-radius:999px;border:1px solid #6655a566;background:#8d73ff16;color:#c8bdff;font-size:.7rem;font-weight:850;letter-spacing:.13em}
+#lobby .hint{max-width:560px;font-size:1.04rem}
+#roomIn{min-height:54px;font-size:1rem}
+#lobby button{min-height:54px;font-size:1rem}
+
+/* Área principal */
+#app{display:none;grid-template-columns:minmax(0,1fr) minmax(320px,390px);height:100svh;min-height:650px;max-height:100svh;gap:0;background:#090d19a8}
+#stage{padding:clamp(.8rem,2vw,1.5rem);gap:1rem;overflow:auto;scrollbar-width:thin;scrollbar-color:#3b4267 transparent}
+#profileBar{position:relative;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;padding:.7rem .85rem;background:linear-gradient(110deg,#171f38eF,#11182beF);border:1px solid #2d3859;border-radius:18px;box-shadow:0 12px 30px #0002}
+#profileAvatar{width:42px;height:42px;border:2px solid #8f7aff;box-shadow:0 0 0 4px #8f7aff20}
+#profileInfo{font-size:.77rem;color:#8f9ab9}
+#profileInfo strong{font-size:.95rem;color:#f5f6ff;font-weight:800}
+#editProfileBtn,#logoutBtn{padding:.58rem .85rem;font-size:.78rem;border-radius:11px;box-shadow:none}
+#logoutBtn{background:#202943;border-color:#394564;color:#c6cce0}
+#profileEditor{padding:.9rem;background:#131b30;border:1px solid #303b5c;border-radius:16px;gap:.65rem}
+#profileEditor .bar{flex-direction:row}
+#profileEditor .bar button{flex:1}
+#profileEditor .bar button:last-child{background:#202943;border-color:#394564;color:#d3d8e8;box-shadow:none}
+#historyPanel{padding:.8rem 1rem;background:#11182b;border:1px solid #283451;border-radius:16px;max-height:150px;color:#aab3cd;font-size:.8rem}
+#historyPanel>strong{display:block;color:#f0efff;font-size:.82rem;letter-spacing:.02em;margin-bottom:.45rem}
+.history-item{padding:.45rem 0;border-top:1px solid #ffffff0d}
+.history-item strong{color:#c7bcff}
+.history-item span{font-size:.72rem;color:#7f8aa9}
+.code{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;color:#9da8c5;font-size:.82rem;padding:.1rem .2rem}
+.code b{display:inline-flex;align-items:center;color:#c8bcff;background:#8c73ff19;border:1px solid #725ce955;border-radius:9px;padding:.35rem .65rem;font-size:1.05rem;letter-spacing:.14em}
+#loadForm{gap:.6rem}
+#loadForm input{flex:1;min-height:48px}
+#loadForm button{white-space:nowrap}
+#screen{aspect-ratio:16/9;border:1px solid #4b4d78;border-radius:20px;background:#03050b;box-shadow:0 22px 70px #0008,0 0 0 5px #8b73ff0b;overflow:hidden}
+#screenTools button{background:#11182be8;border:1px solid #ffffff38;color:#f4f2ff;box-shadow:0 5px 18px #0007}
+#screenTools button:hover{background:#29234b}
+.float-message{background:#11182be8;border:1px solid #a99aff55;border-radius:13px;box-shadow:0 8px 24px #0008;backdrop-filter:blur(12px)}
+.float-message strong{color:#c9bcff}
+
+/* Chat da sala */
+#side{background:linear-gradient(180deg,#11182b 0%,#0c1221 100%);border-left:1px solid #293451;box-shadow:-18px 0 50px #0002}
+.chat-head{padding:1.15rem 1.1rem;border-bottom:1px solid #293451}
+.chat-brand{gap:.75rem}
+.chat-icon{width:44px;height:44px;border-radius:15px;background:linear-gradient(145deg,#a18bff,#5944c9);box-shadow:0 8px 24px #7056e855;color:white}
+.chat-title{font-size:.86rem;letter-spacing:.1em;font-weight:850;color:#f5f3ff}
+.chat-sub{font-size:.76rem;color:#8994b3}
+.online-pill{background:#12382f;color:#75e7ba;border:1px solid #23634f;padding:.4rem .7rem;font-size:.72rem}
+#people{padding:.75rem 1rem;border-bottom:1px solid #293451;gap:.4rem}
+.person{background:#18213a;border:1px solid #303d5e;color:#c7d0e8;padding:.32rem .62rem;font-size:.72rem}
+.person-dot{background:#52e0ad;box-shadow:0 0 9px #52e0ad88}
+#log{padding:1rem;gap:.85rem;scrollbar-color:#394566 transparent}
+#log::-webkit-scrollbar-thumb{background:#394566}
+.chat-event{color:#7784a5;font-size:.7rem}
+.message{max-width:90%;gap:.3rem}
+.message-meta{color:#8995b4;font-size:.69rem}
+.message-meta strong{color:#c8c0ff;font-size:.75rem}
+.creator-tag{background:#40351f;color:#ffdc8c}
+.bubble{background:#1b2540;border:1px solid #303d5e;border-radius:5px 16px 16px 16px;padding:.72rem .88rem;line-height:1.45;box-shadow:0 6px 18px #0002;font-size:.88rem}
+.mine .bubble{background:linear-gradient(140deg,#725ce4,#5743c3);border-color:#9885ff;border-radius:16px 5px 16px 16px}
+.message-time{color:#73809f}
+#typing{color:#a99af4;font-size:.73rem}
+#chatForm{padding:.75rem .9rem calc(.9rem + env(safe-area-inset-bottom,0px));background:#0d1425;border-top:1px solid #293451}
+#chatIn{background:#17213a;border-color:#344263;border-radius:999px;padding:.8rem 1rem}
+#chatForm button{width:46px;min-width:46px;height:46px;border-radius:15px;background:linear-gradient(135deg,#a18bff,#6c53e7);box-shadow:0 6px 18px #7056e844}
+.emoji-row{padding:0 .9rem .65rem;background:#0d1425;gap:.4rem}
+.emoji-btn{background:#17213a;border:1px solid #2e3b5d;padding:.32rem .42rem;border-radius:10px;box-shadow:none}
+.emoji-btn:hover{background:#29345a}
+
+@media(max-width:900px){
+  #app{grid-template-columns:minmax(0,1fr) 330px}
+}
+@media(max-width:700px){
+  body:before{background-size:30px 30px}
+  #app{display:none;grid-template-columns:1fr;grid-template-rows:auto minmax(420px,1fr);height:auto;min-height:100svh;max-height:none}
+  #stage{padding:.75rem;gap:.8rem;overflow:visible}
+  #profileBar{padding:.65rem;gap:.55rem;border-radius:15px}
+  #profileAvatar{width:38px;height:38px}
+  #profileInfo{flex:1}
+  #profileInfo strong{font-size:.88rem}
+  #editProfileBtn,#logoutBtn{padding:.52rem .65rem;font-size:.73rem}
+  #historyPanel{max-height:125px}
+  #loadForm{flex-direction:column}
+  #loadForm button{width:100%;min-height:46px}
+  #screen{border-radius:15px}
+  #side{border-left:0;border-top:1px solid #293451;height:68vh;min-height:470px;border-radius:18px 18px 0 0}
+  .chat-head{padding:.9rem 1rem}
+  #floatingChat{padding:.65rem .65rem 3.7rem;gap:.35rem}
+  .float-message{max-width:92%;padding:.42rem .6rem}
+  .float-message span{font-size:.8rem}
+  #screenTools{right:.45rem;bottom:.45rem}
+  #screenTools button{font-size:.7rem;padding:.4rem .6rem}
+  #profileEditor .bar{flex-direction:column}
+  #profileEditor .bar button{width:100%}
+}
+@media(max-width:380px){
+  #profileBar{gap:.45rem}
+  #editProfileBtn,#logoutBtn{padding:.48rem .55rem}
+  .online-pill{font-size:.66rem;padding:.32rem .48rem}
+  .chat-title{font-size:.78rem}
+  #authView{width:calc(100% - 22px)}
+}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+</style>
+
+</head>
+<body>
+<section id="authView">
+  <div class="auth-card">
+    <h1>Watch Party</h1>
+    <p class="hint">Entre na sua conta para assistir junto com seus amigos.</p>
+    <div class="auth-tabs"><button type="button" id="loginTab" class="active">Entrar</button><button type="button" id="registerTab">Criar conta</button></div>
+    <form id="loginForm" style="display:grid;gap:.7rem;margin-top:1rem">
+      <input id="loginEmail" type="email" placeholder="Seu e-mail" autocomplete="email" required>
+      <input id="loginPassword" type="password" placeholder="Sua senha" autocomplete="current-password" required>
+      <button>Entrar na conta</button>
+    </form>
+    <form id="registerForm" style="display:none;gap:.7rem;margin-top:1rem">
+      <input id="registerName" placeholder="Nome de perfil" maxlength="30" autocomplete="name" required>
+      <input id="registerEmail" type="email" placeholder="Seu e-mail" autocomplete="email" required>
+      <input id="registerPassword" type="password" placeholder="Crie uma senha (mínimo 8 caracteres)" minlength="8" autocomplete="new-password" required>
+      <input id="registerAvatar" type="url" placeholder="Link da foto de perfil (opcional)" inputmode="url">
+      <button>Criar minha conta</button>
+    </form>
+    <div id="authMessage" class="auth-note" role="status"></div>
+  </div>
+</section>
+
+<form id="lobby" style="display:none">
+  <h1>Assistir junto, no mesmo segundo.</h1>
+  <p class="hint">Crie uma sala e mande o código para os amigos. Play, pausa e pulos ficam sincronizados.</p>
+
+  <div class="lobby-options">
+    <strong>✨ Criar uma sala nova</strong>
+    <div class="lobby-row"><input id="privateRoom" type="checkbox"><label for="privateRoom">Sala privada protegida por senha</label></div>
+    <input id="newRoomPassword" type="password" placeholder="Senha da sala (mínimo 4 caracteres)" minlength="4" autocomplete="new-password" style="display:none">
+    <label class="small-label" for="maxMembers">Máximo de participantes</label>
+    <select id="maxMembers" style="width:100%;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:.78rem"><option value="5">5 pessoas</option><option value="10" selected>10 pessoas</option><option value="15">15 pessoas</option><option value="20">20 pessoas</option><option value="30">30 pessoas</option></select>
+    <button type="button" id="createRoomBtn">Criar sala</button>
+  </div>
+  <strong style="text-align:center;color:var(--muted)">ou entrar em uma sala</strong>
+  <input id="roomIn" placeholder="Código da sala" maxlength="8" autocomplete="off">
+  <input id="joinPassword" type="password" placeholder="Senha (se a sala for privada)" autocomplete="off">
+  <button type="submit">Entrar na sala</button>
+  <div id="lobbyMessage" role="status"></div>
+</form>
+
+<section id="communityHub" class="community-hub" hidden>
+  <div class="hub-heading"><strong>Comunidade</strong><span>Adicione amigos e convide para esta sessão</span></div>
+  <div class="hub-grid">
+    <section class="hub-card"><h3>👥 Amigos</h3>
+      <form id="friendSearchForm" class="hub-form"><input id="friendSearch" placeholder="Buscar por nome ou e-mail" maxlength="80"><button>Buscar</button></form>
+      <div id="friendSearchResults" class="hub-list"></div>
+      <div id="friendRequests" class="hub-list"></div>
+      <div id="friendList" class="hub-list">Carregando amigos...</div>
+    </section>
+    <section class="hub-card"><h3>🔔 Notificações <span id="notificationCount" class="hub-count"></span></h3>
+      <div id="notificationList" class="hub-list">Carregando...</div>
+      <button type="button" id="readNotificationsBtn" class="secondary">Marcar como lidas</button>
+    </section>
+  </div>
+</section>
+
+<main id="app">
+  <section id="stage">
+    <div id="profileBar">
+      <img id="profileAvatar" alt="Foto do perfil" src="">
+      <div id="profileInfo"><strong id="profileName"></strong><span id="profileEmail"></span></div>
+      <button type="button" id="editProfileBtn">Perfil</button>
+      <button type="button" id="logoutBtn">Sair</button>
+    </div>
+    <div id="profileEditor">
+      <input id="editName" placeholder="Nome de perfil" maxlength="30">
+      <input id="editAvatar" type="url" placeholder="Link HTTPS da foto">
+      <div class="bar"><button type="button" id="saveProfileBtn">Salvar perfil</button><button type="button" id="cancelProfileBtn">Cancelar</button></div>
+      <div id="profileMessage" class="auth-note"></div>
+    </div>
+    <div id="historyPanel"><strong>Seu histórico de salas</strong><div id="historyList">Carregando...</div></div>
+    <div class="code">Sala <b id="roomCode"></b></div>
+    <div id="roomTools"><span id="roomPrivacy" class="small-label"></span><button type="button" id="copyInviteBtn" hidden>🔗 Copiar convite</button></div>
+    <div id="roomNotice" role="status"></div>
+    <form class="bar" id="loadForm">
+      <input id="url" placeholder="Link do YouTube ou de vídeo (.mp4, .m3u8)">
+      <button>Adicionar vídeo</button>
+    </form>
+    <div id="screen">
+      <div id="ytWrap"><div id="player"></div></div>
+      <video id="vid" playsinline hidden></video>
+      <div id="floatingChat" aria-live="polite" aria-label="Comentários ao vivo sobre o vídeo"></div>
+      <div id="screenTools">
+        <button type="button" id="toggleFloating" aria-pressed="true" title="Ativar ou desativar comentários na tela">💬 Comentários</button>
+        <button type="button" id="fullscreenBtn" title="Abrir vídeo em tela cheia">⛶ Tela cheia</button>
+      </div>
+    </div>
+  </section>
+  <aside id="side">
+    <header class="chat-head">
+      <div class="chat-brand">
+        <div class="chat-icon">✦</div>
+        <div><div class="chat-title">SESSÃO CHAT</div><div class="chat-sub">Conversa da sala</div></div>
+      </div>
+      <div class="online-pill" id="onlineCount">● 1 online</div>
+    </header>
+    <div id="people"></div>
+    <div id="log" aria-live="polite"></div>
+    <div id="typing"></div>
+    <div class="emoji-row" aria-label="Emojis rápidos">
+      <button class="emoji-btn" type="button" data-emoji="😀">😀</button>
+      <button class="emoji-btn" type="button" data-emoji="😂">😂</button>
+      <button class="emoji-btn" type="button" data-emoji="❤️">❤️</button>
+      <button class="emoji-btn" type="button" data-emoji="🍿">🍿</button>
+      <button class="emoji-btn" type="button" data-emoji="🔥">🔥</button>
+      <button class="emoji-btn" type="button" data-emoji="👏">👏</button>
+    </div>
+    <form id="chatForm">
+      <input id="chatIn" placeholder="Digite sua mensagem..." maxlength="500" autocomplete="off">
+      <button aria-label="Enviar mensagem" title="Enviar">➤</button>
+    </form>
+  </aside>
+</main>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://www.youtube.com/iframe_api"></script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const socket = io({ autoConnect: false, reconnection: true, reconnectionAttempts: 8, reconnectionDelay: 1000, reconnectionDelayMax: 10000, timeout: 10000 });
+let currentUser = null;
+const vid = $('vid');
+let yt, ytReady = false, kind = null, current = null, hls = null, applying = false, state = null;
+let isLeader = false, isRoomOwner = false, myName = '', typingTimer = null, pendingInvite = '';
+let activeRoomCode = '', activeJoinPassword = '', activeInviteToken = '', roomJoined = false, lastRoleKnown = false; 
+const users = new Map();
+
+const expected = s => s.time + (s.playing ? (Date.now() - s.updatedAt) / 1000 : 0);
+const ytId = url => (url.match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([\w-]{11})/) || [])[1] || (/^[\w-]{11}$/.test(url) ? url : null);
+const parseSrc = input => ytId(input) ? 'yt:' + ytId(input) : /^https?:\/\//.test(input) ? 'url:' + input : null;
+
+const P = {
+  time: () => kind === 'yt' ? (ytReady ? yt.getCurrentTime() : 0) : vid.currentTime,
+  seek: t => kind === 'yt' ? yt.seekTo(t, true) : (vid.currentTime = t),
+  play: () => kind === 'yt' ? yt.playVideo() : vid.play().catch(() => logSystem('Toque no play do vídeo para começar.')),
+  pause: () => kind === 'yt' ? yt.pauseVideo() : vid.pause()
+};
+
+function onYouTubeIframeAPIReady() {
+  yt = new YT.Player('player', { playerVars: { playsinline: 1, rel: 0 },
+    events: { onReady: () => { ytReady = true; if (state) apply(state); },
+              onStateChange: e => { if (e.data === YT.PlayerState.PLAYING) localChange(true);
+                                    if (e.data === YT.PlayerState.PAUSED) localChange(false); } } });
+}
+
+function loadSrc(src, t) {
+  current = src;
+  const i = src.indexOf(':'); kind = src.slice(0, i); const v = src.slice(i + 1);
+  $('ytWrap').hidden = kind !== 'yt'; vid.hidden = kind === 'yt';
+  if (hls) { hls.destroy(); hls = null; }
+  if (kind === 'yt') { vid.pause(); if (ytReady) yt.cueVideoById(v, t); return; }
+  if (ytReady) yt.pauseVideo();
+  if (/\.m3u8(?:$|\?)/i.test(v) && window.Hls && Hls.isSupported()) {
+    hls = new Hls(); hls.loadSource(v); hls.attachMedia(vid);
+    hls.on(Hls.Events.ERROR, (_, d) => d.fatal && logSystem('Essa transmissão não abriu. O servidor do vídeo pode bloquear o acesso.'));
+  } else vid.src = v;
+  vid.addEventListener('loadedmetadata', () => { vid.currentTime = t; }, { once: true });
+}
+
+function apply(s) {
+  state = s;
+  if (!s.videoId || (s.videoId.startsWith('yt:') && !ytReady)) return;
+  applying = true;
+  if (current !== s.videoId) loadSrc(s.videoId, expected(s));
+  else if (Math.abs(P.time() - expected(s)) > 1) P.seek(expected(s));
+  s.playing ? P.play() : P.pause();
+  setTimeout(() => applying = false, 800);
+}
+
+function localChange(playing) {
+  if (!isLeader || applying || !state) return;
+  if (playing && !state.playing) send('play', P.time());
+  if (!playing && state.playing) send('pause', P.time());
+}
+vid.onplay = () => localChange(true);
+vid.onpause = () => localChange(false);
+vid.onerror = () => vid.src && logSystem('Esse vídeo não abriu. Use um link direto de vídeo (.mp4, .webm ou .m3u8).');
+
+function send(type, time, videoId) {
+  state = { ...state, videoId: videoId ?? state.videoId, playing: type === 'play' || (type === 'seek' && state.playing),
+            time: time ?? 0, updatedAt: Date.now() };
+  socket.emit('action', { type, time, videoId });
+}
+setInterval(() => {
+  if (!isLeader || !state || !state.videoId || applying || current !== state.videoId) return;
+  if (Math.abs(P.time() - expected(state)) > 2) send('seek', P.time());
+}, 1000);
+
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  })[c]);
+}
+function logSystem(message) {
+  const d = document.createElement('div');
+  d.className = 'chat-event';
+  d.textContent = message;
+  const log = $('log');
+  log.append(d);
+  while (log.children.length > 120) log.firstElementChild.remove();
+  log.scrollTop = log.scrollHeight;
+}
+function addMessage(m) {
+  const mine = m.name === myName;
+  const wrap = document.createElement('div');
+  wrap.className = 'message' + (mine ? ' mine' : '');
+  const meta = document.createElement('div');
+  meta.className = 'message-meta';
+  const name = document.createElement('strong');
+  name.textContent = m.name;
+  meta.append(name);
+  if (m.isLeader) {
+    const tag = document.createElement('span');
+    tag.className = 'creator-tag';
+    tag.textContent = 'LÍDER 👑';
+    meta.append(tag);
+  }
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = m.text;
+  const time = document.createElement('div');
+  time.className = 'message-time';
+  time.textContent = m.time || new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+  wrap.append(meta, bubble, time);
+  const log = $('log');
+  const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 100;
+  log.append(wrap);
+  while (log.children.length > 120) log.firstElementChild.remove();
+  if (nearBottom) log.scrollTop = log.scrollHeight;
+}
+function renderPeople(list) {
+  $('onlineCount').textContent = `● ${list.length} online`;
+  $('people').replaceChildren();
+  list.slice(0, 8).forEach(person => {
+    const pill = document.createElement('div'); pill.className = 'person';
+    const dot = document.createElement('span'); dot.className = 'person-dot';
+    const label = document.createElement('span'); label.textContent = person.name + (person.isOwner ? ' · DONO' : '') + (person.isLeader ? ' · LÍDER' : '');
+    pill.append(dot, label);
+    if (isRoomOwner && person.id !== socket.id) {
+      const kick = document.createElement('button'); kick.type = 'button'; kick.textContent = 'Remover'; kick.title = 'Remover participante';
+      kick.addEventListener('click', () => { if (confirm(`Remover ${person.name} da sala?`)) socket.emit('room:kick', person.id); });
+      pill.append(kick);
+    }
+    $('people').append(pill);
+  });
+  if (list.length > 8) { const more = document.createElement('span'); more.className = 'person'; more.textContent = `+${list.length - 8}`; $('people').append(more); }
+}
+function renderTyping(list) {
+  const others = list.filter(n => n !== myName);
+  $('typing').replaceChildren();
+  if (!others.length) return;
+  const dots = document.createElement('span');
+  dots.className = 'typing-dots';
+  dots.innerHTML = '<i></i><i></i><i></i>';
+  $('typing').append(dots, document.createTextNode(
+    others.length === 1 ? `${others[0]} está digitando...` : `${others.length} pessoas estão digitando...`
+  ));
+}
+
+
+let floatingEnabled = true;
+const floatingTimers = new Set();
+
+function showFloatingMessage(m) {
+  if (!floatingEnabled) return;
+  const layer = $('floatingChat');
+  const item = document.createElement('div');
+  item.className = 'float-message';
+  const author = document.createElement('strong');
+  author.textContent = m.name || 'Alguém';
+  const message = document.createElement('span');
+  message.textContent = m.text || '';
+  item.append(author, message);
+  layer.append(item);
+
+  // Mantém apenas as três mensagens mais recentes para não cobrir o filme.
+  while (layer.children.length > 3) {
+    const oldest = layer.firstElementChild;
+    oldest.remove();
+  }
+
+  const timer = setTimeout(() => {
+    item.classList.add('leaving');
+    setTimeout(() => item.remove(), 500);
+    floatingTimers.delete(timer);
+  }, 5200);
+  floatingTimers.add(timer);
+}
+
+$('toggleFloating').addEventListener('click', () => {
+  floatingEnabled = !floatingEnabled;
+  $('toggleFloating').setAttribute('aria-pressed', String(floatingEnabled));
+  $('toggleFloating').textContent = floatingEnabled ? '💬 Comentários' : '🙈 Comentários';
+  if (!floatingEnabled) $('floatingChat').replaceChildren();
+});
+
+$('fullscreenBtn').addEventListener('click', async () => {
+  const screen = $('screen');
+  try {
+    if (document.fullscreenElement === screen) {
+      await document.exitFullscreen();
+    } else if (screen.requestFullscreen) {
+      await screen.requestFullscreen();
+    } else if (screen.webkitRequestFullscreen) {
+      screen.webkitRequestFullscreen();
+    } else if (vid.webkitEnterFullscreen && !vid.hidden) {
+      // Fallback do Safari iOS antigo: o vídeo entra em fullscreen nativo.
+      // Nesse modo o iOS pode não desenhar elementos HTML sobre o vídeo.
+      vid.webkitEnterFullscreen();
+      logSystem('Neste modo do iPhone, os comentários sobre o vídeo podem não aparecer em tela cheia.');
+    } else {
+      logSystem('Tela cheia não é suportada neste navegador.');
+    }
+  } catch (err) {
+    logSystem('Não foi possível abrir a tela cheia neste navegador.');
+  }
+});
+
+function emitRoomJoin() {
+  if (!activeRoomCode || !socket.connected || roomJoined) return;
+  socket.emit('join', { room: activeRoomCode, password: activeJoinPassword, invite: activeInviteToken });
+}
+socket.on('connect', () => { emitRoomJoin(); });
+socket.on('disconnect', () => {
+  roomJoined = false; lastRoleKnown = false;
+  isLeader = false;
+  $('loadForm').hidden = true;
+  $('vid').controls = false;
+  $('screen').classList.add('guest');
+});
+socket.on('state', apply);
+socket.on('role', data => {
+  const nextLeader = !!(data.isLeader ?? data.isCreator);
+  const nextOwner = !!data.isOwner;
+  const changed = !lastRoleKnown || nextLeader !== isLeader || nextOwner !== isRoomOwner;
+  isLeader = nextLeader; isRoomOwner = nextOwner; lastRoleKnown = true;
+  $('loadForm').hidden = !isLeader;
+  $('vid').controls = isLeader;
+  $('screen').classList.toggle('guest', !isLeader);
+  if (changed) logSystem(isLeader ? (isRoomOwner ? 'Você é o dono e líder da sala! 👑' : 'Você assumiu a liderança temporariamente! 👑') : 'Você entrou como convidado.');
+});
+socket.on('presence', renderPeople);
+socket.on('typing', renderTyping);
+socket.on('chat', m => { addMessage(m); showFloatingMessage(m); });
+socket.on('system', logSystem);
+socket.on('room:details', data => {
+  roomJoined = true;
+  $('roomCode').textContent = data.code;
+  $('roomPrivacy').textContent = `${data.isPrivate ? '🔒 Sala privada' : '🌐 Sala pública'} · limite de ${data.maxMembers} pessoas`;
+});
+socket.on('room:join-error', message => {
+  roomJoined = false; activeRoomCode = ''; activeJoinPassword = ''; activeInviteToken = '';
+  $('app').style.display = 'none'; $('lobby').style.display = 'grid'; $('lobbyMessage').textContent = message;
+});
+socket.on('room:password-required', data => {
+  roomJoined = false; activeRoomCode = '';
+  $('lobby').style.display = 'grid'; $('app').style.display = 'none';
+  $('roomIn').value = data.room; $('lobbyMessage').textContent = data.error || 'Digite a senha da sala.';
+  $('joinPassword').focus();
+});
+socket.on('room:kicked', () => {
+  roomJoined = false; activeRoomCode = ''; activeJoinPassword = ''; activeInviteToken = '';
+  socket.disconnect(); $('app').style.display = 'none'; $('lobby').style.display = 'grid';
+  $('lobbyMessage').textContent = 'Você foi removido desta sala pelo criador.';
+});
+
+function setAuthMessage(message, isError = true) {
+  $('authMessage').textContent = message;
+  $('authMessage').style.color = isError ? '#ffbd89' : '#8be0b7';
+}
+function showAuthTab(register) {
+  $('loginForm').style.display = register ? 'none' : 'grid';
+  $('registerForm').style.display = register ? 'grid' : 'none';
+  $('loginTab').classList.toggle('active', !register);
+  $('registerTab').classList.toggle('active', register);
+  setAuthMessage('');
+}
+$('loginTab').onclick = () => showAuthTab(false);
+$('registerTab').onclick = () => showAuthTab(true);
+async function api(path, options = {}) {
+  const response = await fetch(path, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }, ...options });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'Ocorreu um erro.');
+  return data;
+}
+function renderProfile(user) {
+  currentUser = user; myName = user.display_name;
+  $('profileName').textContent = user.display_name;
+  $('profileEmail').textContent = user.email;
+  $('profileAvatar').src = user.avatar_url || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"%3E%3Ccircle cx="20" cy="20" r="20" fill="%2349365e"/%3E%3Ctext x="20" y="27" text-anchor="middle" font-size="20" fill="white"%3E' + encodeURIComponent(user.display_name.charAt(0).toUpperCase()) + '%3C/text%3E%3C/svg%3E';
+}
+async function loadHistory() {
+  try {
+    const data = await api('/api/history');
+    const list = $('historyList'); list.replaceChildren();
+    if (!data.history.length) { list.textContent = 'Suas salas visitadas aparecerão aqui.'; return; }
+    data.history.forEach(item => {
+      const row = document.createElement('div'); row.className = 'history-item';
+      const code = document.createElement('strong'); code.textContent = 'Sala ' + item.room_code;
+      const date = document.createElement('span'); date.textContent = new Date(item.joined_at).toLocaleString('pt-BR');
+      row.append(code, date); list.append(row);
+    });
+  } catch { $('historyList').textContent = 'Não foi possível carregar o histórico.'; }
+}
+function enterAccount(user) {
+  renderProfile(user);
+  $('authView').style.display = 'none'; $('lobby').style.display = 'grid'; $('communityHub').hidden = false;
+  loadHistory();
+  loadFriends().catch(()=>{}); loadNotifications().catch(()=>{});
+  if (!socket.connected) socket.connect();
+}
+$('loginForm').onsubmit = async e => {
+  e.preventDefault(); setAuthMessage('Entrando...', false);
+  try { const data = await api('/api/login', { method: 'POST', body: JSON.stringify({ email: $('loginEmail').value, password: $('loginPassword').value }) }); enterAccount(data.user); }
+  catch (err) { setAuthMessage(err.message); }
+};
+$('registerForm').onsubmit = async e => {
+  e.preventDefault(); setAuthMessage('Criando sua conta...', false);
+  try { const data = await api('/api/register', { method: 'POST', body: JSON.stringify({ displayName: $('registerName').value, email: $('registerEmail').value, password: $('registerPassword').value, avatarUrl: $('registerAvatar').value }) }); enterAccount(data.user); }
+  catch (err) { setAuthMessage(err.message); }
+};
+$('editProfileBtn').onclick = () => {
+  $('editName').value = currentUser.display_name; $('editAvatar').value = currentUser.avatar_url || '';
+  $('profileEditor').classList.toggle('open');
+};
+$('cancelProfileBtn').onclick = () => $('profileEditor').classList.remove('open');
+$('saveProfileBtn').onclick = async () => {
+  try { const data = await api('/api/profile', { method: 'PATCH', body: JSON.stringify({ displayName: $('editName').value, avatarUrl: $('editAvatar').value }) }); renderProfile(data.user); socket.emit('profile:update', data.user); $('profileMessage').textContent = 'Perfil atualizado!'; $('profileMessage').style.color = '#8be0b7'; $('profileEditor').classList.remove('open'); }
+  catch (err) { $('profileMessage').textContent = err.message; }
+};
+$('logoutBtn').onclick = async () => {
+  try { await api('/api/logout', { method: 'POST', body: '{}' }); } catch {}
+  activeRoomCode = ''; activeJoinPassword = ''; activeInviteToken = ''; roomJoined = false;
+  socket.disconnect(); $('app').style.display = 'none'; $('lobby').style.display = 'none'; $('lobby').after($('communityHub')); $('communityHub').hidden = true; $('authView').style.display = 'grid';
+  $('loginPassword').value = ''; showAuthTab(false);
+};
+socket.on('connect_error', err => {
+  const message = err && err.message || 'Não foi possível conectar ao servidor.';
+  if (/faça login|login|required|unauthorized/i.test(message)) {
+    activeRoomCode = ''; roomJoined = false;
+    setAuthMessage(message); $('authView').style.display = 'grid'; $('lobby').style.display = 'none'; $('app').style.display = 'none';
+  } else if ($('app').style.display === 'grid') { logSystem('Conexão instável. Tentando reconectar automaticamente...'); }
+  else $('lobbyMessage').textContent = 'Não foi possível conectar. Verifique sua internet e tente novamente.';
+});
+function connectToRoom(room, password = '', invite = '') {
+  $('lobbyMessage').textContent = 'Entrando na sala...';
+  activeRoomCode = String(room || '').trim().toUpperCase();
+  activeJoinPassword = password; activeInviteToken = invite; roomJoined = false;
+  if (socket.connected) emitRoomJoin(); else socket.connect();
+  $('roomCode').textContent = room;
+  $('stage').append($('communityHub'));
+  loadFriends().catch(()=>{});
+  $('lobby').style.display = 'none'; $('app').style.display = 'grid';
+}
+$('privateRoom').addEventListener('change', () => { $('newRoomPassword').style.display = $('privateRoom').checked ? 'block' : 'none'; });
+$('createRoomBtn').onclick = async () => {
+  const isPrivate = $('privateRoom').checked;
+  try {
+    $('createRoomBtn').disabled = true; $('lobbyMessage').textContent = 'Criando sua sala...';
+    const data = await api('/api/rooms', { method: 'POST', body: JSON.stringify({ isPrivate, password: $('newRoomPassword').value, maxMembers: Number($('maxMembers').value) }) });
+    const room = data.room;
+    $('copyInviteBtn').hidden = !room.isPrivate; $('copyInviteBtn').dataset.url = room.inviteUrl;
+    if (room.isPrivate) $('roomNotice').textContent = 'Convite privado criado. Copie o link e envie apenas para quem você quer convidar.';
+    connectToRoom(room.code);
+  } catch (err) { $('lobbyMessage').textContent = err.message; }
+  finally { $('createRoomBtn').disabled = false; }
+};
+$('copyInviteBtn').onclick = async () => {
+  const url = $('copyInviteBtn').dataset.url;
+  try { await navigator.clipboard.writeText(url); $('roomNotice').textContent = 'Link de convite copiado!'; }
+  catch { $('roomNotice').textContent = url; }
+};
+$('lobby').onsubmit = e => {
+  e.preventDefault();
+  const room = $('roomIn').value.trim().toUpperCase();
+  if (!room) { $('lobbyMessage').textContent = 'Digite o código da sala ou crie uma nova.'; return; }
+  connectToRoom(room, $('joinPassword').value, pendingInvite);
+  pendingInvite = ''; $('joinPassword').value = '';
+};
+const query = new URLSearchParams(location.search);
+if (query.get('room')) { $('roomIn').value = query.get('room').toUpperCase(); pendingInvite = query.get('invite') || ''; }
+
+$('loadForm').onsubmit = e => {
+  e.preventDefault();
+  if (!isLeader) return logSystem('Somente o líder atual pode adicionar vídeos.');
+  const src = parseSrc($('url').value.trim());
+  if (!src) return logSystem('Cole um link válido que comece com https://');
+  send('load', 0, src);
+  apply(state);
+  $('url').value = '';
+};
+$('chatForm').onsubmit = e => {
+  e.preventDefault();
+  const t = $('chatIn').value.trim();
+  if (t) socket.emit('chat', t);
+  $('chatIn').value = '';
+  socket.emit('typing', false);
+};
+$('chatIn').addEventListener('input', () => {
+  socket.emit('typing', true);
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(() => socket.emit('typing', false), 1100);
+});
+
+function hubItem(text, actions=[]) {
+  const row=document.createElement('div'); row.className='hub-item';
+  const label=document.createElement('span'); label.textContent=text; row.append(label);
+  if(actions.length){const wrap=document.createElement('div');wrap.className='hub-actions';actions.forEach(a=>{const b=document.createElement('button');b.type='button';b.textContent=a.label;b.className='secondary';b.onclick=a.onClick;wrap.append(b)});row.append(wrap)}
+  return row;
+}
+async function loadFriends(){
+  const data=await api('/api/friends'); const list=$('friendList'), req=$('friendRequests'); list.replaceChildren();req.replaceChildren();
+  if(!data.friends.length) list.textContent='Ainda não há amigos adicionados.';
+  data.friends.forEach(u=>list.append(hubItem(u.display_name,[...( $('roomCode').textContent ? [{label:'Convidar',onClick:async()=>{try{await api('/api/rooms/'+encodeURIComponent($('roomCode').textContent)+'/invite/'+u.id,{method:'POST',body:'{}'});$('roomNotice').textContent='Convite enviado para '+u.display_name+'!'}catch(e){alert(e.message)}}}] : []),{label:'Remover',onClick:async()=>{if(confirm('Remover '+u.display_name+' dos amigos?')){await api('/api/friends/'+u.id,{method:'DELETE'});loadFriends()}}},{label:'Bloquear',onClick:async()=>{if(confirm('Bloquear '+u.display_name+'?')){await api('/api/blocks/'+u.id,{method:'POST',body:'{}'});loadFriends()}}}])));
+  if(!data.incoming.length&&!data.outgoing.length) req.textContent='Nenhuma solicitação pendente.';
+  data.incoming.forEach(u=>req.append(hubItem('Pedido de '+u.display_name,[{label:'Aceitar',onClick:async()=>{await api('/api/friends/'+u.request_id+'/respond',{method:'POST',body:JSON.stringify({accept:true})});await loadFriends();await loadNotifications()}},{label:'Recusar',onClick:async()=>{await api('/api/friends/'+u.request_id+'/respond',{method:'POST',body:JSON.stringify({accept:false})});loadFriends()}}])));
+  data.outgoing.forEach(u=>req.append(hubItem('Aguardando: '+u.display_name)));
+}
+async function loadNotifications(){
+  const data=await api('/api/notifications'), list=$('notificationList');list.replaceChildren();
+  const unread=data.notifications.filter(n=>!n.read_at).length;$('notificationCount').textContent=unread?`(${unread} novas)`:'';
+  if(!data.notifications.length)list.textContent='Você está em dia. Nenhuma notificação.';
+  data.notifications.forEach(n=>{const actions=[];const inviteUrl=n.data&&typeof n.data.inviteUrl==='string'?n.data.inviteUrl:'';if(n.type==='room_invite'&&/^https?:\/\//i.test(inviteUrl))actions.push({label:'Entrar na sala',onClick:()=>{location.href=inviteUrl}});list.append(hubItem((n.read_at?'':'● ')+n.message,actions));});
+}
+$('friendSearchForm').onsubmit=async e=>{e.preventDefault();const q=$('friendSearch').value.trim();if(q.length<2)return;try{const data=await api('/api/friends/search?q='+encodeURIComponent(q));const list=$('friendSearchResults');list.replaceChildren();if(!data.users.length)list.textContent='Nenhuma pessoa encontrada.';data.users.forEach(u=>list.append(hubItem(u.display_name,[{label:'Adicionar',onClick:async()=>{try{await api('/api/friends/request',{method:'POST',body:JSON.stringify({userId:u.id})});loadFriends();alert('Solicitação enviada!')}catch(e){alert(e.message)}}}])))}catch(e){alert(e.message)}};
+$('readNotificationsBtn').onclick=async()=>{await api('/api/notifications/read',{method:'POST',body:'{}'});loadNotifications()};
+socket.on('notification:new',()=>{loadNotifications().catch(()=>{});loadFriends().catch(()=>{});});
+api('/api/me').then(data => enterAccount(data.user)).catch(() => {});
+document.querySelectorAll('[data-emoji]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $('chatIn').value += btn.dataset.emoji;
+    $('chatIn').focus();
+    socket.emit('typing', true);
+  });
+});
+</script>
+</body>
+</html>
